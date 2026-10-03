@@ -6,7 +6,7 @@
 # unavailable. This package reads the latest window from HA's own diagnostics
 # for the TV and adds the windows up into a normal energy sensor.
 #
-# Setup: see README.md. Replace the three EDIT values, then put this file in
+# Setup: see README.md (https://github.com/r5e/ha-samsung-tv-energy). Replace the three EDIT values, then put this file in
 # /config/packages/ (packages must be enabled).
 
 rest:
@@ -18,8 +18,14 @@ rest:
       - name: "Living room TV energy window"  # EDIT: your TV's name
         unique_id: living_room_tv_energy_window
         unit_of_measurement: Wh
+        # Guard: at startup the first read can run before HA's API is ready, and then there's no
+        # JSON to read. Return nothing (unknown) instead of logging a template error.
         value_template: >
-          {{ value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy }}
+          {% if value_json is defined and value_json.data is defined %}
+            {{ value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy }}
+          {% else %}
+            {{ none }}
+          {% endif %}
         json_attributes_path: "$.data.status.components.main.powerConsumptionReport.powerConsumption.value"
         json_attributes:
           - start
