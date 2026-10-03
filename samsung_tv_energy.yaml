@@ -1,0 +1,60 @@
+# Samsung TV energy from SmartThings diagnostics (Home Assistant package)
+#
+# Some Samsung TVs report real energy use to SmartThings in 15-minute windows
+# (powerConsumptionReport -> deltaEnergy), but list the capability as disabled,
+# so Home Assistant's SmartThings integration shows their energy sensors as
+# unavailable. This package reads the latest window from HA's own diagnostics
+# for the TV and adds the windows up into a normal energy sensor.
+#
+# Setup: see README.md. Replace the three EDIT values, then put this file in
+# /config/packages/ (packages must be enabled).
+
+rest:
+  - resource: https://homeassistant.local:8123/api/diagnostics/config_entry/CONFIG_ENTRY_ID/device/DEVICE_ID  # EDIT: your HA address, SmartThings config entry ID and TV device ID
+    headers:
+      Authorization: !secret ha_diag_token  # "Bearer <long-lived access token>" in secrets.yaml
+    scan_interval: 300
+    sensor:
+      - name: "Living room TV energy window"  # EDIT: your TV's name
+        unique_id: living_room_tv_energy_window
+        unit_of_measurement: Wh
+        value_template: >
+          {{ value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy }}
+        json_attributes_path: "$.data.status.components.main.powerConsumptionReport.powerConsumption.value"
+        json_attributes:
+          - start
+          - end
+
+template:
+  - trigger:
+      - trigger: state
+        entity_id: sensor.living_room_tv_energy_window  # EDIT to match the name above
+        attribute: end
+    sensor:
+      - name: "Living room TV energy"  # EDIT: your TV's name
+        unique_id: living_room_tv_energy_total
+        unit_of_measurement: kWh
+        device_class: energy
+        state_class: total_increasing
+        # Count each 15-minute window exactly once: a window is added only if its
+        # "end" time differs from the last window counted (kept in last_end).
+        # This survives restarts without double counting or skipping a window.
+        state: >
+          {% set prev = this.state | float(0) %}
+          {% set t = trigger.to_state %}
+          {% set e = t.attributes.get('end') if t is not none else none %}
+          {% if t is none or e is none or t.state in ['unknown', 'unavailable']
+                or e == this.attributes.get('last_end') %}
+            {{ prev }}
+          {% else %}
+            {{ (prev + (t.state | float(0)) / 1000) | round(4) }}
+          {% endif %}
+        attributes:
+          last_end: >
+            {% set t = trigger.to_state %}
+            {% set e = t.attributes.get('end') if t is not none else none %}
+            {% if t is not none and e is not none and t.state not in ['unknown', 'unavailable'] %}
+              {{ e }}
+            {% else %}
+              {{ this.attributes.get('last_end') }}
+            {% endif %}
