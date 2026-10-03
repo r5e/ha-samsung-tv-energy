@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 (October 2026)
+
+- The window sensor no longer logs a template error at startup, when its first read runs
+  before Home Assistant's API is ready (`value_json is undefined`). It stays unknown until the
+  next successful read.
+
 ## 1.0.0 (October 2026)
 
 - First release: REST sensor reading the TV's 15-minute `deltaEnergy` windows from Home
