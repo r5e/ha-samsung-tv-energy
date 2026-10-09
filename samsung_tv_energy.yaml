@@ -18,14 +18,16 @@ rest:
       - name: "Living room TV energy window"  # EDIT: your TV's name
         unique_id: living_room_tv_energy_window
         unit_of_measurement: Wh
-        # Guard: at startup the first read can run before HA's API is ready, and then there's no
-        # JSON to read. Return nothing (unknown) instead of logging a template error.
+        # Availability: at startup the first read can run before HA's API is ready, so there's
+        # no JSON yet, and some windows carry no figure. Mark the sensor unavailable in those
+        # cases rather than rendering "None", which a REST sensor with a unit rejects; if that
+        # happens while the entity is being added, it isn't created at all until the next restart.
+        availability: >
+          {% set v = value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy
+                 if value_json is defined and value_json.data is defined else none %}
+          {{ v is number }}
         value_template: >
-          {% if value_json is defined and value_json.data is defined %}
-            {{ value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy }}
-          {% else %}
-            {{ none }}
-          {% endif %}
+          {{ value_json.data.status.components.main.powerConsumptionReport.powerConsumption.value.deltaEnergy }}
         json_attributes_path: "$.data.status.components.main.powerConsumptionReport.powerConsumption.value"
         json_attributes:
           - start

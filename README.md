@@ -145,7 +145,7 @@ sensor) under Settings > Dashboards > Energy > **Individual devices**.
 ## 6. Checking it works
 
 - **The window sensor** shows a number in Wh, with `start` and `end` attributes. Right
-  after a restart it can show **unknown** for up to 5 minutes (the REST sensor's first
+  after a restart it can show **unavailable** for up to 5 minutes (the REST sensor's first
   read can run before Home Assistant's API is ready).
 - **The energy sensor** steps up whenever a new window arrives, normally every 15
   minutes. With the TV off, expect small steps (about 0.004 kWh each on my TV); with it
@@ -191,6 +191,12 @@ windows by their end time instead, which avoids that, as described in section 3.
 Check Settings > System > Logs for errors from `rest`. The usual causes are the address
 (port, HTTP versus HTTPS), the certificate (see 5.3), or the token line (it needs
 `Bearer ` in front).
+
+**The log shows `has the non-numeric value: 'None'` for the window sensor, and the sensor
+is missing after a restart.** That's the bug fixed in 1.0.2: update the window sensor's
+`value_template` block to the `availability` and `value_template` lines in the current
+`samsung_tv_energy.yaml`, check the configuration, and restart. Windows reported while the
+sensor was missing can't be recovered.
 
 **The energy sensor stays at 0.**
 It only counts **new** windows, so it starts with the next window after setup. If it's
